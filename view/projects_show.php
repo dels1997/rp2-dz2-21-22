@@ -14,8 +14,6 @@
             echo '<td>' . $project[0]->abstract . '</td>';
             echo '<td>' . $project[0]->status . '</td>';
             echo '<td>' . $project[0]->number_of_members . '</td>';
-            echo '<td>';
-            echo '</td>';
             echo '</tr>';
         }
         echo '</table></br></br>';

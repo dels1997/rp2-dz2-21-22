@@ -242,7 +242,7 @@ class TeamUpService
                 $id_project = $row['id_project'];
             }
         }
-        echo 'id_proj: ' . $id_project . '</br>';
+
         return $id_project;
     }
 
