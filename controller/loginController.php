@@ -6,11 +6,11 @@ class loginController
 {
     public function index()
     {
-        $title = 'Please input your username and password...';
+        $title = 'Welcome!';
 
-        $rez = TeamUpService::processLogin();
+        $rez = TeamUpService::processLoginOrRegister();
 
-        if($rez)
+        if($rez && !isset($_POST['register']))
         {
             $projectlist = $rez;
             
@@ -18,6 +18,14 @@ class loginController
         }
         else
             require_once __DIR__ . '/../view/login_index.php';
+    }
+
+    function finishRegistration()
+    {
+        $sequence = $_GET['sequence'] ?? null;
+        $sequence = rtrim($sequence, "/");
+        TeamUpService::addHasRegistered($user);
+        $_SESSION['username'] = $user->username;
     }
 };
 

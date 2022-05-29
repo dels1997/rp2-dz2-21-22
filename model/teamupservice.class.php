@@ -245,6 +245,14 @@ class TeamUpService
         $st->execute(['member_type' => 'application_rejected', 'id_project' => $id_project, 'id_user' => $id_user]);
     }
 
+    public static function addUser($user)
+    {
+        $db = DB::getConnection();
+        $st = $db->prepare('INSERT INTO dz2_users (id, username, password_hash, email, registration_sequence, has_registered) VALUES
+            (:id, :username, :password_hash, :email, :registration_sequence, :has_registered)');
+        $st->execute(['id' => $user->id, 'username' => $user->username, 'password_hash' => $user->password_hash, 'email' => $user->email, 'registration_sequence' => $user->registration_sequence, 'has_registered' => $user->has_registered]);
+    }
+
     public static function processLogout()
     {
         if(isset($_SESSION))
@@ -292,81 +300,133 @@ class TeamUpService
         return $projects;
     }
 
-    public static function processLogin()
+    public static function processLoginOrRegister()
     {
+        echo 'u processloginorregister smo prije return</br>';
+        
         // Provjeri sastoji li se ime samo od slova; ako ne, crtaj login formu.
-		if( !isset( $_POST['username'] ) || !isset($_POST['password']) || !preg_match( '/^[a-zA-Z ,-.]+$/', $_POST['username'] ) )
+		if( !isset( $_POST['username'] ) || !isset($_POST['password'])// || !preg_match( '/^[a-zA-Z ,-.]+$/', $_POST['username'] )
+        )
 		{
             require_once __DIR__ . '/../view/login_index.php';
 			return False;
 		}
         
-
-        // return TeamUpService::getAllProjects();
-
-		// require_once __DIR__ . '/../view/projects_index.php';
-
-        // Sve je OK, provjeri jel ga ima u bazi.
-        $db = DB::getConnection();
-
-        try
+        echo 'u processloginorregister smo nakon return</br>';
+        if(isset($_POST['login']))
         {
-            $st = $db->prepare( 'SELECT * FROM dz2_users WHERE username=:username' );
-            $st->execute( array( 'username' => $_POST["username"] ) );
-        }
-        catch( PDOException $e ) { require_once __DIR__ . '/../view/login_index.php'; return False; }
-
-        $row = $st->fetch();
-
-        if( $row === false )
-        {
-            // Taj user ne postoji, upit u bazu nije vratio ništa.
-            require_once __DIR__ . '/../view/login_index.php';
-            return False;
-        }
-        else
-        {
-            
-            // Postoji user. Dohvati hash njegovog passworda.
-            $hash = $row[ 'password_hash'];
-            $id_user = $row['id'];
-            // Da li je password dobar?
-            if( password_verify( $_POST['password'], $hash ) )
+            echo 'login set';
+            // return TeamUpService::getAllProjects();
+    
+            // require_once __DIR__ . '/../view/projects_index.php';
+    
+            // Sve je OK, provjeri jel ga ima u bazi.
+            $db = DB::getConnection();
+    
+            try
             {
-                // Dobar je. Ulogiraj ga.
-                //crtaj_uspjesnoUlogiran( $_POST['username' ] );
-                $_SESSION['login'] = $_POST['username'] . ',' . $hash . ',' . $id_user;
-                $_SESSION['username'] = $_POST['username'];
-                // require_once __DIR__ . '/../teamup.php?rt=projects/index';//&id_user=' . $id_user;
-                return TeamUpService::getAllProjects();/*?rt=products/index*/
+                $st = $db->prepare( 'SELECT * FROM dz2_users WHERE username=:username' );
+                $st->execute( array( 'username' => $_POST["username"] ) );
             }
-            else
+            catch( PDOException $e ) { require_once __DIR__ . '/../view/login_index.php'; return False; }
+    
+            $row = $st->fetch();
+    
+            if( $row === false )
             {
-                // Nije dobar. Crtaj opet login formu s pripadnom porukom.
+                // Taj user ne postoji, upit u bazu nije vratio ništa.
                 require_once __DIR__ . '/../view/login_index.php';
                 return False;
             }
+            else
+            {
+                
+                // Postoji user. Dohvati hash njegovog passworda.
+                $hash = $row[ 'password_hash'];
+                $id_user = $row['id'];
+                // Da li je password dobar?
+                if( password_verify( $_POST['password'], $hash ) )
+                {
+                    // Dobar je. Ulogiraj ga.
+                    //crtaj_uspjesnoUlogiran( $_POST['username' ] );
+                    $_SESSION['login'] = $_POST['username'] . ',' . $hash . ',' . $id_user;
+                    $_SESSION['username'] = $_POST['username'];
+                    // require_once __DIR__ . '/../teamup.php?rt=projects/index';//&id_user=' . $id_user;
+                    return TeamUpService::getAllProjects();/*?rt=products/index*/
+                }
+                else
+                {
+                    // Nije dobar. Crtaj opet login formu s pripadnom porukom.
+                    require_once __DIR__ . '/../view/login_index.php';
+                    return False;
+                }
+            }
+            // return TeamUpService::getAllProjects();
         }
-        // return TeamUpService::getAllProjects();
-    }
+        else
+        {
+            echo 'register post';
+            $email = $_POST["username"] ?? null;
+            // Koristimo built-in funkcionalnosti da se riješimo eventualnog smeća u unosu.
+            $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+            $username = $_POST["username"] ?? null;
+            $password = $_POST["password"] ?? null;
+            if (!$email || !$username || !$password)
+            {
+                $_SESSION["registerErrorMessage"] = "Enter all the fields!";
+                // header('Location: ' . __SITE_URL .'/hotels');
+            }
+            // elseif (User::where("username", $username))
+            // {
+            //     $_SESSION["registerErrorMessage"] = "Username already exists!";
+                // header('Location: ' . __SITE_URL .'/hotels');
+            // }
+            else
+            {
+                echo 'tusmo';
+                $link = '<a href = "http://' . $_SERVER["HTTP_HOST"] . __SITE_URL . "/login/finishRegistration&sequence=";
+                $sequence = "";
 
-    // public static function getBooksByAuthor($author)
-    // {
-    //     $books = [];
-    //     $db = DB::getConnection();
+                // U svrhu sigurnosti, niz za potvrdu registracije generira se nasumično.
+                for ($i = 0; $i < random_int(10, 20); $i++) $sequence .= chr(random_int(97, 122));
+                $link .= $sequence . '">link</a>';
 
-    //     $st = $db->prepare('SELECT * FROM books WHERE author=:author');
+                $user = new User(-1, $username, password_hash($password, PASSWORD_DEFAULT), $email, $sequence, 0);
 
-    //     $st->execute(['author' => $author]);
+                TeamUpService::addUser($user);
+                $subject = "Registration for TeamUp";
+                $body = "Click on the following " . $link . " to finish your registration for TeamUp!";
+                $headers = "Content-type: text/html\r\n";
+                $headers .= "To: " . $email . "\r\n";
+                $headers .= 'From: TeamUp <dels@teamup.com>' . "\r\n";
+                if (mail($email, $subject, $body, $headers))
+                {
+                    echo "Check your mail to finish a registration :)";
+                    return;
+                } else "Something's wrong: " . var_dump(error_get_last());
+            }
+        }
+    
+        // public static function getBooksByAuthor($author)
+        // {
+        //     $books = [];
+        //     $db = DB::getConnection();
+    
+        //     $st = $db->prepare('SELECT * FROM books WHERE author=:author');
+    
+        //     $st->execute(['author' => $author]);
+    
+        //     while($row = $st->fetch())
+        //     {
+        //         $book = new Book($row['id'], $row['author'], $row['title']);
+        //         $books[] = $book;
+        //     }
+    
+        //     return $books;
+        // }
+        }
+        
 
-    //     while($row = $st->fetch())
-    //     {
-    //         $book = new Book($row['id'], $row['author'], $row['title']);
-    //         $books[] = $book;
-    //     }
-
-    //     return $books;
-    // }
 }
 
 ?>
