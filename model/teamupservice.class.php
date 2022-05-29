@@ -24,9 +24,10 @@ class TeamUpService
         $st = $db->prepare('SELECT * FROM dz2_users WHERE username=:username');
         $st->execute(['username' => $username]);
 
-        $row = $st->fetch();
-
-        return new User($row['id'], $row['username'], $row['password_hash'], $row['email'], $row['registration_sequence'], $row['has_registered']);    
+        if($row = $st->fetch())
+            return new User($row['id'], $row['username'], $row['password_hash'], $row['email'], $row['registration_sequence'], $row['has_registered']);
+        else
+            return null; 
     }
 
     public static function getAuthorByProjectID($id_project)
@@ -87,7 +88,7 @@ class TeamUpService
 
         while($row = $st->fetch())
         {
-            if($row['member_type'] == 'invitation_pending')
+            if($row['member_type'] == 'invitation_pending' || $row['member_type'] == 'invitation_accepted' || $row['member_type'] == 'invitation_rejected')
                 $invitations[] = new Member($row['id'], $row['id_project'], $row['id_user'], $row['member_type']);
         }
 
@@ -137,7 +138,7 @@ class TeamUpService
         return $memberlist;
     }
 
-    public static function isMemberOf($id_user, $id_project)
+    public static function isMemberAppliedInvitedTo($id_user, $id_project)
     {
         $db = DB::getConnection();
         $st = $db->prepare('SELECT * FROM dz2_members WHERE id_project=:id_project');
@@ -145,7 +146,7 @@ class TeamUpService
         
         while($row = $st->fetch())
         {
-            if($row['member_type'] === 'member' || $row['member_type'] === 'invitation_accepted' || $row['member_type'] === 'application_accepted')
+            if($row['member_type'] === 'member' || $row['member_type'] === 'invitation_accepted' || $row['member_type'] === 'application_accepted'  || $row['member_type'] === 'application_pending'  || $row['member_type'] === 'invitation_pending'  || $row['member_type'] === 'invitation_rejected'  || $row['member_type'] === 'application_rejected')
             {
                 if($row['id_user'] === $id_user)
                     return True;
@@ -174,11 +175,101 @@ class TeamUpService
         return $broj_clanova >= $dopusteni_broj_clanova;
     }
 
-    public static function addMember($id_user, $id_project)
+    public static function closeProject($id_project)
+    {
+        $db = DB::getConnection();
+        $st = $db->prepare('UPDATE dz2_projects SET status=:status WHERE id=:id_project');
+
+        $st->execute(['status' => 'closed', 'id_project' => $id_project]);
+    }
+
+    public static function closeProjectIfNeeded($id_project)
+    {
+        $db = DB::getConnection();
+        $st = $db->prepare('SELECT * FROM dz2_members WHERE id_project=:id_project');
+
+        $st->execute(['id_project' => $id_project]);
+
+        $koliko = 0;
+        while($row = $st->fetch())
+        {
+            if($row['member_type'] === 'member' || $row['member_type'] === 'invitation_accepted' || $row['member_type'] === 'application_accepted')
+                $koliko++;
+        }
+
+        $st = $db->prepare('SELECT * FROM dz2_projects WHERE id=:id_project');
+        $st->execute(['id_project' => $id_project]);
+        $row = $st->fetch();
+
+        $max_number_of_members = $row['number_of_members'];
+        if($koliko >= $max_number_of_members)
+        {
+            TeamUpService::closeProject($id_project);
+        }
+    }
+
+    public static function addAuthorAsMember($id_user, $id_project)
     {
         $db = DB::getConnection();
         $st = $db->prepare('INSERT INTO dz2_members (id_project, id_user, member_type) VALUES (:id_project, :id_user, :member_type)');
+
         $st->execute(['id_project' => $id_project, 'id_user' => $id_user, 'member_type' => 'member']);
+    }
+
+    public static function findAddedProjectID($id_user)
+    {
+        $db = DB::getConnection();
+        $st = $db->prepare('SELECT * FROM dz2_projects WHERE id_user=:id_user');
+
+        $st->execute(['id_user' => $id_user]);
+
+        $project_ids = [];
+        while($row = $st->fetch())
+        {
+            $project_ids[] = $row['id'];
+        }
+
+        $st = $db->prepare('SELECT * FROM dz2_members WHERE id_user=:id_user');
+
+        $st->execute(['id_user' => $id_user]);
+
+        $id_project = null;
+
+        while($row = $st->fetch())
+        {
+            if(!in_array($row['id_project'], $project_ids))
+            {
+                $id_project = $row['id_project'];
+            }
+        }
+        echo 'id_proj: ' . $id_project . '</br>';
+        return $id_project;
+    }
+
+    public static function createProject($id_user, $project_title, $project_abstract, $project_number_of_members)
+    {
+        $db = DB::getConnection();
+        $st = $db->prepare('INSERT INTO dz2_projects (id_user, title, abstract, number_of_members, status) VALUES (:id_user, :title, :abstract, :number_of_members, :status)');
+
+        $success = False;
+        if($project_number_of_members > 1)
+            $success = $st->execute(['id_user' => $id_user, 'title' => $project_title, 'abstract' => $project_abstract, 'number_of_members' => $project_number_of_members, 'status' => 'open']);
+        else
+            $success = $st->execute(['id_user' => $id_user, 'title' => $project_title, 'abstract' => $project_abstract, 'number_of_members' => $project_number_of_members, 'status' => 'closed']);
+        
+        if($success)
+        {
+            $added_project_id = TeamUpService::findAddedProjectID($id_user);
+            TeamUpService::addAuthorAsMember($id_user, $added_project_id);
+        }
+        return $success;
+    }
+
+    public static function applyToProject($id_user, $id_project)
+    {
+        $db = DB::getConnection();
+        $st = $db->prepare('INSERT INTO dz2_members (id_project, id_user, member_type) VALUES (:id_project, :id_user, :member_type)');
+        $st->execute(['id_project' => $id_project, 'id_user' => $id_user, 'member_type' => 'application_pending']);
     }
 
     public static function acceptInvitation($id_user, $id_project)
@@ -186,7 +277,9 @@ class TeamUpService
         $db = DB::getConnection();
         $st = $db->prepare('UPDATE dz2_members SET member_type=:member_type WHERE id_project=:id_project AND id_user=:id_user');
 
-        echo $st->execute(['member_type' => 'invitation_accepted', 'id_project' => $id_project, 'id_user' => $id_user]);
+        $st->execute(['member_type' => 'invitation_accepted', 'id_project' => $id_project, 'id_user' => $id_user]);
+
+        TeamUpService::closeProjectIfNeeded($id_project);
     }
 
     public static function rejectInvitation($id_user, $id_project)
@@ -235,7 +328,9 @@ class TeamUpService
         $db = DB::getConnection();
         $st = $db->prepare('UPDATE dz2_members SET member_type=:member_type WHERE id_project=:id_project AND id_user=:id_user');
 
-        echo $st->execute(['member_type' => 'application_accepted', 'id_project' => $id_project, 'id_user' => $id_user]);
+        $st->execute(['member_type' => 'application_accepted', 'id_project' => $id_project, 'id_user' => $id_user]);
+
+        TeamUpService::closeProjectIfNeeded($id_project);
     }
 
     public static function rejectApplication($id_user, $id_project)
@@ -248,9 +343,9 @@ class TeamUpService
     public static function addUser($user)
     {
         $db = DB::getConnection();
-        $st = $db->prepare('INSERT INTO dz2_users (id, username, password_hash, email, registration_sequence, has_registered) VALUES
-            (:id, :username, :password_hash, :email, :registration_sequence, :has_registered)');
-        $st->execute(['id' => $user->id, 'username' => $user->username, 'password_hash' => $user->password_hash, 'email' => $user->email, 'registration_sequence' => $user->registration_sequence, 'has_registered' => $user->has_registered]);
+        $st = $db->prepare('INSERT INTO dz2_users (username, password_hash, email, registration_sequence, has_registered) VALUES
+            (:username, :password_hash, :email, :registration_sequence, :has_registered)');
+        $st->execute(['username' => $user->username, 'password_hash' => $user->password_hash, 'email' => $user->email, 'registration_sequence' => $user->registration_sequence, 'has_registered' => $user->has_registered]);
     }
 
     public static function processLogout()
@@ -261,24 +356,6 @@ class TeamUpService
             session_destroy();
         }
     }
-
-    // public static function getAllUsers()
-    // {
-    //     $users = [];
-    //     $db = DB::getConnection();
-
-    //     $st = $db->prepare('SELECT * FROM users');
-
-    //     $st->execute([]);
-
-    //     while($row = $st->fetch())
-    //     {
-    //         $user = new User($row['id'], $row['name'], $row['surname'], $row['password']);
-    //         $users[] = $user;
-    //     }
-
-    //     return $users;
-    // }
 
     public static function getAllProjects()
     {
@@ -302,7 +379,7 @@ class TeamUpService
 
     public static function processLoginOrRegister()
     {
-        echo 'u processloginorregister smo prije return</br>';
+        // echo 'u processloginorregister smo prije return</br>';
         
         // Provjeri sastoji li se ime samo od slova; ako ne, crtaj login formu.
 		if( !isset( $_POST['username'] ) || !isset($_POST['password'])// || !preg_match( '/^[a-zA-Z ,-.]+$/', $_POST['username'] )
@@ -312,10 +389,10 @@ class TeamUpService
 			return False;
 		}
         
-        echo 'u processloginorregister smo nakon return</br>';
+        // echo 'u processloginorregister smo nakon return</br>';
         if(isset($_POST['login']))
         {
-            echo 'login set';
+            // echo 'login set';
             // return TeamUpService::getAllProjects();
     
             // require_once __DIR__ . '/../view/projects_index.php';
@@ -365,7 +442,7 @@ class TeamUpService
         }
         else
         {
-            echo 'register post';
+            // echo 'register post';
             $email = $_POST["username"] ?? null;
             // Koristimo built-in funkcionalnosti da se riješimo eventualnog smeća u unosu.
             $email = filter_var($email, FILTER_SANITIZE_EMAIL);
@@ -383,7 +460,7 @@ class TeamUpService
             // }
             else
             {
-                echo 'tusmo';
+                // echo 'tusmo';
                 $link = '<a href = "http://' . $_SERVER["HTTP_HOST"] . __SITE_URL . "/login/finishRegistration&sequence=";
                 $sequence = "";
 
@@ -401,32 +478,12 @@ class TeamUpService
                 $headers .= 'From: TeamUp <dels@teamup.com>' . "\r\n";
                 if (mail($email, $subject, $body, $headers))
                 {
-                    echo "Check your mail to finish a registration :)";
+                    echo "Check your mail to finish registration :)";
                     return;
                 } else "Something's wrong: " . var_dump(error_get_last());
             }
         }
-    
-        // public static function getBooksByAuthor($author)
-        // {
-        //     $books = [];
-        //     $db = DB::getConnection();
-    
-        //     $st = $db->prepare('SELECT * FROM books WHERE author=:author');
-    
-        //     $st->execute(['author' => $author]);
-    
-        //     while($row = $st->fetch())
-        //     {
-        //         $book = new Book($row['id'], $row['author'], $row['title']);
-        //         $books[] = $book;
-        //     }
-    
-        //     return $books;
-        // }
-        }
-        
-
+    }
 }
 
 ?>

@@ -7,6 +7,7 @@ class ProjectsController
     public function index()
     {
         $projectlist = TeamUpService::getAllProjects();
+        
         $title = 'List of all projects';
 
         require_once __DIR__ . '/../view/projects_index.php';
@@ -22,29 +23,6 @@ class ProjectsController
         $title = 'List of my projects';
 
         require_once __DIR__ . '/../view/projects_index.php';
-    }
-
-    public function searchResults()
-    {
-        $author = $_POST['author'];
-
-        $booklist = LibraryService::getBooksByAuthor($author);
-        $title = 'Popis svih knjiga autora ' . $author;
-
-        require_once __DIR__ . '/../view/books_index.php';
-    }
-
-    public function list()
-    {
-        $id_user = $_GET['id_user'];
-        
-        $user = LibraryService::getUserByID($id_user);
-        
-        $booklist = LibraryService::getLoanedBooks($user);
-
-        $title = 'Popis svih knjiga koje je posudio ' . $user->name . ' ' . $user->surname;
-
-        require_once __DIR__ . '/../view/books_index.php';
     }
 
     public function show()
@@ -66,7 +44,7 @@ class ProjectsController
 
         $iAmAuthor = ($id_user === $logged_user->id);
 
-        $member_already = TeamUpService::isMemberOf($logged_user->id, $id_project);
+        $member_applied_invited_already = TeamUpService::isMemberAppliedInvitedTo($logged_user->id, $id_project);
 
         $title = 'Info about project ' . $project_current->title . '</br>';
 
@@ -89,15 +67,15 @@ class ProjectsController
 
         $memberlist = TeamUpService::getProjectMembersByID($id_project);
 
-        $member_already = TeamUpService::isMemberOf($logged_user->id, $id_project);
-
+        $member_applied_invited_already = TeamUpService::isMemberAppliedInvitedTo($logged_user->id, $id_project);
+        
         $project_full = TeamUpService::projectFull($id_project);
 
         $application_successfull = False;
 
-        if(!($member_already || $project_full))
+        if(!($member_applied_invited_already || $project_full))
         {
-            TeamUpService::addMember($logged_user->id, $id_project);
+            TeamUpService::applyToProject($logged_user->id, $id_project);
             $application_successfull = True;
         }
 
@@ -116,53 +94,33 @@ class ProjectsController
 
         $invited_user = TeamUpService::getUserByName($_POST['person_to_invite']);
 
-        $logged_user = TeamUpService::getUserByName($_SESSION['username']);
-
-        // $id_user = $project_current->id_user;
-
-        // $user = TeamUpService::getUserByID($id_user);
-
-        // $memberlist = TeamUpService::getProjectMembersByID($id_project);
-
-        $member_already = TeamUpService::isMemberOf($invited_user->id, $id_project);
-
-        $project_full = TeamUpService::projectFull($id_project);
-
-        $invitation_successfull = False;
-
-        if(!($member_already || $project_full))
+        if($invited_user)
         {
-            $invitation_successfull = TeamUpService::inviteMember($invited_user->id, $id_project);
+            $logged_user = TeamUpService::getUserByName($_SESSION['username']);
+    
+            // $id_user = $project_current->id_user;
+    
+            // $user = TeamUpService::getUserByID($id_user);
+    
+            // $memberlist = TeamUpService::getProjectMembersByID($id_project);
+    
+            $member_already = TeamUpService::isMemberAppliedInvitedTo($invited_user->id, $id_project);
+    
+            $project_full = TeamUpService::projectFull($id_project);
+    
+            $invitation_successfull = False;
+    
+            if(!($member_already || $project_full))
+            {
+                $invitation_successfull = TeamUpService::inviteMember($invited_user->id, $id_project);
+            }
+        }
+        else
+        {
+            $invitation_successfull = False;
         }
 
-        // $projectlist = [];
-        // $projectlist[] = [$project_current, $user->username];
-
-        // $title = 'Info about project ' . $project_current->title . '</br>';
         $title = 'Invitation status';
-
-        // // ----- KOPIRANO IZ SHOW
-        // $id_project = $_GET['id_project'];
-
-        // $project_current = TeamUpService::getProjectByID($id_project);
-
-        // $id_user = $project_current->id_user;
-
-        // $user = TeamUpService::getUserByID($id_user);
-
-        // $memberlist = TeamUpService::getProjectMembersByID($id_project);
-
-        // $projectlist = [];
-        // $projectlist[] = [$project_current, $user->username];
-
-        // $logged_user = TeamUpService::getUserByName($_SESSION['username']);
-
-        // $iAmAuthor = ($id_user === $logged_user->id);
-
-        // $member_already = TeamUpService::isMemberOf($logged_user->id, $id_project);
-
-        // $title = 'Info about project ' . $project_current->title . '</br>';
-        // // ----
 
         require_once __DIR__ . '/../view/projects_invite.php';
     }

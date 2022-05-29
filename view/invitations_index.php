@@ -15,7 +15,7 @@
                 echo '<td>' . $project[2] . '</td>';
                 echo '</tr></table>';
 
-                if($project[0]->status === 'open')
+                if($project[0]->status === 'open' && $project[2] === 'invitation_pending')
                 {
                     echo '<div>';
                     echo '<form action="teamup.php?rt=invitations/decision&id_project=' . $project[0]->id . '" method="POST">' .

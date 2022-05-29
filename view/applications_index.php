@@ -9,7 +9,7 @@
             foreach($projects as $project)
             {
                 echo '<tr>';
-                echo '<td>' . $project[0]->title . '</td>';
+                echo '<td><a href="teamup.php?rt=projects/show&id_project=' . $project[0]->id . '">' . $project[0]->title . '</a></td>';
                 echo '<td>' . $project[0]->status . '</td>';
                 echo '<td>' . $project[2] . '</td>';
                 echo '</tr>';

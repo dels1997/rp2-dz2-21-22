@@ -14,6 +14,9 @@
         <a href="teamup.php?rt=projects/owned">My projects</a>
         </li>
         <li>
+        <a href="teamup.php?rt=start/index">Start a new project!</a>
+        </li>
+        <li>
         <a href="teamup.php?rt=invitations/index">Pending invitations</a>
         </li>
         <li>

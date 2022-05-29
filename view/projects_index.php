@@ -8,10 +8,18 @@
         foreach($projectlist as $project)
         {
             echo '<tr>';
-            echo '<td><a href="teamup.php?rt=projects/show&id_project=' . $project[0]->id . '">' . $project[0]->title . '</a></td>';
+            echo '<td>';
+            echo '<a href="teamup.php?rt=projects/show&id_project=' . $project[0]->id . '"';
+            if($project[1] === $_SESSION['username'])
+                echo ' style="background-color: lightgreen">';
+            else
+                echo '>';
+            echo $project[0]->title . '</a></td>';
             echo '<td>' . $project[1] . '</td>';
             echo '<td>' . $project[0]->status . '</td>';
             echo '</tr>';
+            // if($project[1] === $_SESSION['username'])
+            //     echo '</div>';
         }
     ?>
 </table>

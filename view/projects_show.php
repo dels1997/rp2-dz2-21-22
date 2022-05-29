@@ -27,25 +27,28 @@
         }
         echo '</div>';
 
-        if(!$member_already)
+        if(!$member_applied_invited_already)
         {
             echo '<form action="teamup.php?rt=projects/apply&id_project=' . $project[0]->id . '" method="POST">' .
             '<button type="submit">Apply!</button>' .
                 '</form>';
         }
-        // application list vjv uopce ne treba
-        if($project[0]->status === 'open')
+
+        if($iAmAuthor)
         {
             foreach($applicationlist as $application)
             {
                 echo '<div>';
                 echo $application[1]->username . ' wants to apply!';
-                echo '<form action="teamup.php?rt=projects/decision&id_project=' . $project[0]->id . '" method="POST">' .
-                    '<input type="text" name="id_user" value="' . $application[0]->id_user . '" hidden readonly>' .
-                    '<button type="submit" name="accept">Accept application!</button></br>' .
-                    '<button type="submit" name="reject">Reject application!</button></br>' .
-                    '</form>';
-                echo '</div>';
+                if($project[0]->status === 'open')
+                {
+                    echo '<form action="teamup.php?rt=projects/decision&id_project=' . $project[0]->id . '" method="POST">' .
+                        '<input type="text" name="id_user" value="' . $application[0]->id_user . '" hidden readonly>' .
+                        '<button type="submit" name="accept">Accept application!</button></br>' .
+                        '<button type="submit" name="reject">Reject application!</button></br>' .
+                        '</form>';
+                    echo '</div>';
+                }
             }
         }
 
