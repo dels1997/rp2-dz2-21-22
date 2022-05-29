@@ -25,7 +25,7 @@
         }
         echo '</div>';
 
-        if(!$member_applied_invited_already)
+        if(!$member_applied_invited_already && !$project_full)
         {
             echo '<form action="teamup.php?rt=projects/apply&id_project=' . $project[0]->id . '" method="POST">' .
             '<button type="submit">Apply!</button>' .

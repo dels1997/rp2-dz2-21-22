@@ -7,7 +7,7 @@ class ProjectsController
     public function index()
     {
         $projectlist = TeamUpService::getAllProjects();
-        
+
         $title = 'List of all projects';
 
         require_once __DIR__ . '/../view/projects_index.php';
@@ -17,8 +17,6 @@ class ProjectsController
     {
         $user = TeamUpService::getUserByName($_SESSION['username']);
         
-        // $user = TeamUpService::getUserByID($id_user->id);
-
         $projectlist = TeamUpService::getMyProjects($user);
         $title = 'List of my projects';
 
@@ -41,6 +39,8 @@ class ProjectsController
         $projectlist[] = [$project_current, $user->username];
 
         $logged_user = TeamUpService::getUserByName($_SESSION['username']);
+
+        $project_full = TeamUpService::projectFull($id_project);
 
         $iAmAuthor = ($id_user === $logged_user->id);
 

@@ -59,7 +59,7 @@ class TeamUpService
             $id_project = $row['id_project'];
             $project = TeamUpService::getProjectByID($id_project);
             $user = TeamUpService::getAuthorByProjectID($project->id);
-            $projects[] = [TeamUpService::getProjectByID($id_project), $user->username, null];
+            $projects[] = [$project, $user->username, null];
         }
 
         return $projects;
@@ -219,31 +219,32 @@ class TeamUpService
     public static function findAddedProjectID($id_user)
     {
         $db = DB::getConnection();
-        $st = $db->prepare('SELECT * FROM dz2_projects WHERE id_user=:id_user');
-
+        
+        
+        $st = $db->prepare('SELECT * FROM dz2_members WHERE id_user=:id_user');
+        
         $st->execute(['id_user' => $id_user]);
-
+        
         $project_ids = [];
         while($row = $st->fetch())
         {
-            $project_ids[] = $row['id'];
+            $project_ids[] = $row['id_project'];
         }
-
-        $st = $db->prepare('SELECT * FROM dz2_members WHERE id_user=:id_user');
-
+        
+        $st = $db->prepare('SELECT * FROM dz2_projects WHERE id_user=:id_user');
         $st->execute(['id_user' => $id_user]);
 
-        $id_project = null;
+        $project_id = null;
 
         while($row = $st->fetch())
         {
-            if(!in_array($row['id_project'], $project_ids))
+            if(!in_array($row['id'], $project_ids))
             {
-                $id_project = $row['id_project'];
+                $project_id = $row['id'];
             }
         }
 
-        return $id_project;
+        return $project_id;
     }
 
     public static function createProject($id_user, $project_title, $project_abstract, $project_number_of_members)
